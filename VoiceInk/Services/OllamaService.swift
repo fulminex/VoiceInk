@@ -75,17 +75,45 @@ class OllamaService: ObservableObject {
             throw LocalAIError.invalidURL
         }
 
-        do {
-            return try await OllamaClient.generate(
-                baseURL: url,
-                model: selectedModel,
-                prompt: text,
-                systemPrompt: systemPrompt,
-                temperature: defaultTemperature
-            )
-        } catch let error as LLMKitError {
-            throw mapLLMKitError(error)
+        // PROVISIONAL: Direct API call to Ollama instead of using LLMkit's OllamaClient.generate()
+        // to support the "think" parameter. Once LLMkit adds support for this parameter
+        // (see https://github.com/Beingpax/LLMkit/pull/1), revert to using OllamaClient.generate().
+        let endpoint = url.appendingPathComponent("api/generate")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        let body: [String: Any] = [
+            "model": selectedModel,
+            "prompt": text,
+            "system": systemPrompt,
+            "temperature": defaultTemperature,
+            "stream": false,
+            "think": false
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+            throw LocalAIError.invalidRequest
         }
+        request.httpBody = bodyData
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw LocalAIError.invalidResponse
+        }
+
+        if http.statusCode == 404 { throw LocalAIError.modelNotFound }
+        if http.statusCode == 500 { throw LocalAIError.serverError }
+        guard (200..<300).contains(http.statusCode) else { throw LocalAIError.invalidResponse }
+
+        struct OllamaResponse: Decodable { let response: String }
+        guard let decoded = try? JSONDecoder().decode(OllamaResponse.self, from: data) else {
+            throw LocalAIError.invalidResponse
+        }
+
+        return decoded.response
     }
 
     private func mapLLMKitError(_ error: LLMKitError) -> LocalAIError {
