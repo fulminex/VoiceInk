@@ -18,7 +18,7 @@ class ActiveWindowService: ObservableObject {
     func configure(with enhancementService: AIEnhancementService) {
         self.enhancementService = enhancementService
     }
-    
+
     func applyConfiguration(powerModeId: UUID? = nil) async {
         if let powerModeId = powerModeId,
            let config = PowerModeManager.shared.getConfiguration(with: powerModeId) {
@@ -42,7 +42,7 @@ class ActiveWindowService: ObservableObject {
 
         if let browserType = BrowserType.allCases.first(where: { $0.bundleIdentifier == bundleIdentifier }) {
             do {
-                let currentURL = try await browserURLService.getCurrentURL(from: browserType)
+                let currentURL = try await browserURLService.getCurrentURL(from: browserType, targetPID: frontmostApp.processIdentifier)
                 if let config = PowerModeManager.shared.getConfigurationForURL(currentURL) {
                     configToApply = config
                 }
@@ -71,4 +71,4 @@ class ActiveWindowService: ObservableObject {
             }
         }
     }
-} 
+}
