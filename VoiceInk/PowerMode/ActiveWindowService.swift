@@ -64,11 +64,6 @@ class ActiveWindowService: ObservableObject {
                 PowerModeManager.shared.setActiveConfiguration(config)
             }
             await PowerModeSessionManager.shared.beginSession(with: config)
-        } else {
-            await PowerModeSessionManager.shared.endSession()
-            await MainActor.run {
-                PowerModeManager.shared.setActiveConfiguration(nil)
-            }
         }
     }
 }
